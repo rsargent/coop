@@ -1,0 +1,604 @@
+<html>
+<head>
+<script src="js/jquery3.2.1.min.js"></script>
+<script src="js/xolor.umd.js"></script>
+<script>
+
+var field; // 0=empty;  1=player 0,  2=player 1, etc
+var fieldWidth, fieldHeight;
+var fieldUpperMargin = 3;
+var fieldScale;
+var drawn;
+var players = [];
+
+var pieces = [
+  [[{x:-1, y: 0}, {x: 0, y: 0}, {x:-1, y: 1}, {x: 0, y: 1}]], // block
+
+  [[{x: 0, y:-1}, {x: 0, y: 0}, {x: 0, y: 1}, {x: 0, y: 2}],
+   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 2, y: 0}]], // I
+
+  [[{x: 0, y:-1}, {x: 0, y: 0}, {x: 0, y: 1}, {x: 1, y: 0}],
+   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}],
+   [{x: 0, y:-1}, {x: 0, y: 0}, {x: 0, y: 1}, {x: -1, y: 0}],
+   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 0, y: -1}]], // T
+
+  [[{x: 0, y:-1}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 1, y: 1}], 
+   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 0, y:-1}, {x: 1, y:-1}]], // S
+  
+  [[{x: 0, y:-1}, {x: 0, y: 0}, {x:-1, y: 0}, {x:-1, y: 1}],
+   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}]], // Z
+
+  [[{x:-1, y:-1}, {x:-1, y: 0}, {x:-1, y: 1}, {x: 0, y: 1}],
+   [{x:-2, y: 1}, {x:-1, y: 1}, {x: 0, y: 1}, {x: 0, y: 0}],
+   [{x: 0, y: 2}, {x: 0, y: 1}, {x: 0, y: 0}, {x:-1, y: 0}],
+   [{x: 1, y: 0}, {x: 0, y: 0}, {x:-1, y: 0}, {x:-1, y: 1}]], // J
+
+  [[{x: 0, y:-1}, {x: 0, y: 0}, {x: 0, y: 1}, {x:-1, y: 1}],
+   [{x:-2, y: 0}, {x:-1, y: 0}, {x: 0, y: 0}, {x: 0, y: 1}],
+   [{x:-1, y: 2}, {x:-1, y: 1}, {x:-1, y: 0}, {x: 0, y: 0}],
+   [{x: 1, y: 1}, {x: 0, y: 1}, {x:-1, y: 1}, {x:-1, y: 0}]], // L
+];
+
+var maxPlayers = 8;
+
+var playerColors = [
+  'rgb(0,127,201)',
+  'rgb(110,67,24)',
+  'rgb(0,170,75)',
+  'rgb(248,139,0)',
+  'rgb(240,22,22)',
+  'rgb(217,0,128)',
+  'rgb(255,244,0)',
+  'rgb(255,182,213)'
+];
+  
+
+var colors = {
+  0: 'black',
+};
+
+for (var i = 0; i < maxPlayers; i++) {
+  colors[i + 1] = playerColors[i];
+  colors[i + maxPlayers + 1] = xolor(playerColors[i]).saturation(0.4).value(0.5).toString()
+}
+
+function resizeField(width, height) {
+  var newField = new Uint8Array(new ArrayBuffer(width * height));
+  
+  if (field) {
+    for (var x = 0; x < fieldWidth; x++) {
+      for (var y = 0; y < fieldHeight; y++) {
+        newField[x + y * width] = readCell(x, y);
+      }
+    }
+  }
+
+  field = newField;
+  fieldWidth = width;
+  fieldHeight = height;
+}
+
+function redrawField() {
+  if (!drawn || field.length != drawn.length) {
+    drawn = new Uint8Array(new ArrayBuffer(fieldWidth * fieldHeight));
+    for (var i = 0; i < drawn.length; i++) drawn[i] = 255;
+  }
+  for (var y = 0; y < fieldHeight - fieldUpperMargin; y++) {
+    for (var x = 0; x < fieldWidth; x++) {
+      var i = x + y * fieldWidth;
+      if (field[i] != drawn[i]) {
+        ctx.fillStyle = colors[field[i]];
+        ctx.fillRect(x * fieldScale, (fieldHeight - fieldUpperMargin - 1 - y) * fieldScale, fieldScale, fieldScale);
+        drawn[i] = field[i];
+      }
+    }
+  }
+}
+
+function resizeWindow() {
+  var border = 5;
+  var statusWidth = 180;
+  var maxWidth = window.innerWidth - border * 3 - statusWidth;
+  var maxHeight = window.innerHeight - border * 2;
+  var videoHeight = statusWidth * 9/16;
+  
+  fieldScale = Math.floor(Math.min(maxWidth / fieldWidth, maxHeight / (fieldHeight - fieldUpperMargin)));
+  drawn = null;
+  var height = (fieldHeight - fieldUpperMargin) * fieldScale;
+  $('#field')
+    .attr('width', fieldWidth * fieldScale)
+    .attr('height', (fieldHeight - fieldUpperMargin) * fieldScale)
+    .css('width', fieldWidth * fieldScale)
+    .css('left', 0.5 * (window.innerWidth - fieldWidth * fieldScale - border - statusWidth))
+    .css('top', border + 0.5 * (maxHeight - height))
+    .css('height', height);
+  $('#status')
+    .css('width', statusWidth)
+    .css('left', $('#field').position().left + $('#field').width() + border)
+    .css('top', border + 0.5 * (maxHeight - height))
+    .css('height', height - videoHeight - border);
+  $('#video')
+    .css('width', statusWidth)
+    .css('left', $('#field').position().left + $('#field').width() + border)
+    .css('top', border + 0.5 * (maxHeight - height) + height - videoHeight)
+    .css('height', videoHeight);
+  redrawField();
+}
+
+function writeCell(x, y, color) {
+  field[x + y * fieldWidth] = color;
+}
+
+function readCell(x, y) {
+  if (x < 0 || x >= fieldWidth || y < 0 || y >= fieldHeight) return 1;
+  return field[x + y * fieldWidth];
+}
+
+function erasePiece(player) {
+  var rp = player.piece[player.rot];
+  for (var i = 0; i < 4; i++) {
+    writeCell(player.x + rp[i].x, player.y + rp[i].y, 0);
+  }
+}
+
+function tryPiece(player) {
+  var rp = player.piece[player.rot];
+  var m = 0;
+  for (var i = 0; i < 4; i++) {
+    m = Math.max(m, readCell(player.x + rp[i].x, player.y + rp[i].y));
+  }
+  return m;
+}
+
+function drawPiece(player, colorOverride) {
+  if (!colorOverride) {
+    colorOverride = player.color;
+  }
+  var rp = player.piece[player.rot];
+  for (var i = 0; i < 4; i++) {
+    if (readCell(player.x + rp[i].x, player.y + rp[i].y)) {
+      return false;
+    }
+  }
+  for (var i = 0; i < 4; i++) {
+    writeCell(player.x + rp[i].x, player.y + rp[i].y, colorOverride);
+  }
+  return true;
+}
+
+var gameIsOver;
+
+function gameOver() {
+  player.pauseVideo();
+  player.seekTo(0);
+  gameIsOver = true;
+  for (var i = 0; i < players.length; i++) {
+    erasePiece(players[i]);
+  }
+  updateStatus();
+}
+
+function startPiece(player) {
+  for (var playerIndex = 0; playerIndex < players.length; playerIndex++) {
+    if (players[playerIndex] == player) break;
+  }
+  player.x = Math.round(fieldWidth / players.length * (playerIndex + 0.5));
+  player.y = fieldHeight - fieldUpperMargin;
+  player.rot = 0;
+  player.piece = pieces[Math.floor(Math.random() * pieces.length)];
+  if (tryPiece(player) >= maxPlayers + 1) {
+    gameOver();
+  } else if (drawPiece(player)) {
+    redrawField();
+  } else {
+    player.wait = 1;
+  }
+}
+
+function updateNplayers() {
+  var newFieldWidth = 7 + Math.max(1, players.length) * 3;
+  var newFieldHeight = 24 + Math.max(1, players.length) * 3;
+  resizeField(newFieldWidth, newFieldHeight);
+  resizeWindow();
+}
+
+function findUnusedColor() {
+  var usedColors = {};
+  for (var i = 0; i < players.length; i++) {
+    usedColors[players[i].color] = true;
+  }
+  for (var i = 1; i < maxPlayers + 1; i++) {
+    if (!usedColors[i]) {
+      return i;
+    }
+  }
+  return null;
+}
+
+function addPlayer(id) {
+  if (players.length == 0) player.playVideo();
+  var newPlayer = {id:id, color:findUnusedColor()};
+  players.push(newPlayer);
+  updateNplayers();
+  newPlayer.wait = 1;
+}
+
+var translateCommands = {
+  'left': {dx:-1, dy: 0},
+  'right':{dx: 1, dy: 0},
+  'up':   {dx: 0, dy: 1},
+  'down': {dx: 0, dy:-1}
+};
+
+var rotateCommands = {
+  'rotLeft': -1,
+  'rotRight': 1
+};
+
+function findPlayer(id) {
+  for (var i = 0; i < players.length; i++) {
+    if (players[i].id == id) return players[i];
+  }
+  return null;
+}
+
+function rotatePiece(player, delta)
+{
+  erasePiece(player);
+  player.rot = (player.rot + delta + player.piece.length) % player.piece.length;
+  if (!drawPiece(player)) {
+    player.rot = (player.rot - delta + player.piece.length) % player.piece.length;
+    drawPiece(player);
+  }
+}
+
+function translatePiece(player, dir)
+{
+  erasePiece(player);
+  player.x += dir.dx;
+  player.y += dir.dy;
+  if (!drawPiece(player)) {
+    player.x -= dir.dx;
+    player.y -= dir.dy;
+    drawPiece(player);
+  }
+}
+
+var isPaused = false;
+
+function togglePause() {
+  isPaused = !isPaused;
+  updateStatus();
+}
+
+function execute(e) {
+  if (e.cmd == 'pause') togglePause();
+
+  if (isPaused) return;
+  
+  if (!findPlayer(e.player)) addPlayer(e.player);
+  var player = findPlayer(e.player);
+  if (player.wait) return;
+
+  var t = translateCommands[e.cmd];
+  if (t) {
+    translatePiece(player, t);
+  }
+  var r = rotateCommands[e.cmd];
+  if (r) {
+    rotatePiece(player, r);
+  }
+
+  redrawField();
+}
+
+var localKeymap = {
+  37 : {player:'local1', cmd:'left'     }, // left arrow
+  39 : {player:'local1', cmd:'right'    }, // right arrow
+  38 : {player:'local1', cmd:'up'       }, // up arrow
+  40 : {player:'local1', cmd:'down'     }, // down arrow
+  191: {player:'local1', cmd:'rotLeft'  }, // slash
+  16 : {player:'local1', cmd:'rotRight' }, // right shift
+  13 : {player:'local1', cmd:'quit'     }, // return
+
+  65 : {player:'local2', cmd:'left'     }, // a
+  68 : {player:'local2', cmd:'right'    }, // d
+  87 : {player:'local2', cmd:'up'       }, // w
+  83 : {player:'local2', cmd:'down'     }, // s
+  81 : {player:'local2', cmd:'rotLeft'  }, // q
+  69 : {player:'local2', cmd:'rotRight' }, // e
+  88 : {player:'local2', cmd:'quit'     }, // x
+
+  1014 : {player:'gamepad0', cmd:'left'     },
+  1015 : {player:'gamepad0', cmd:'right'    },
+  1012 : {player:'gamepad0', cmd:'up'       },
+  1013 : {player:'gamepad0', cmd:'down'     },
+  1002 : {player:'gamepad0', cmd:'rotLeft'  },
+  1001 : {player:'gamepad0', cmd:'rotRight' },
+  1009 : {player:'gamepad0', cmd:'pause'    },
+  1008 : {player:'gamepad0', cmd:'quit'     },
+
+  1114 : {player:'gamepad1', cmd:'left'     },
+  1115 : {player:'gamepad1', cmd:'right'    },
+  1112 : {player:'gamepad1', cmd:'up'       },
+  1113 : {player:'gamepad1', cmd:'down'     },
+  1102 : {player:'gamepad1', cmd:'rotLeft'  },
+  1101 : {player:'gamepad1', cmd:'rotRight' },
+  1109 : {player:'gamepad1', cmd:'pause'    },
+  1108 : {player:'gamepad1', cmd:'quit'     },
+}
+
+var keyrepeats = {};
+
+function key(keyCode) {
+  console.log(keyCode);
+  var e = localKeymap[keyCode];
+  if (e) execute(e);
+}
+  
+function keyup(event) {
+  var keyCode = event.keyCode;
+  if (keyrepeats[keyCode]) {
+    window.clearInterval(keyrepeats[keyCode]);
+    keyrepeats[keyCode] = null;
+  }
+}
+
+function startAutoRepeat(keyCode) {
+  key(keyCode);
+  keyrepeats[keyCode] = window.setInterval(function(){key(keyCode)}, 100);
+}
+                      
+function keydown(event) {
+  var keyCode = event.keyCode;
+  if (!keyrepeats[keyCode]) {
+    key(keyCode);
+    keyrepeats[keyCode] = window.setTimeout(function(){startAutoRepeat(keyCode)}, 200);
+  }
+}
+
+function speed() {
+  return Math.floor(2 + nrows / 10);
+}
+
+var multiples = [
+  '0',
+  'Single',
+  'Double',
+  'Triple',
+  'Quadruple',
+  'Quintuple',
+  'Sextuple',
+  'Septuple',
+  'Octuple',
+  'Nonuple',
+  'Decuple',
+  'Undecuple',
+  'Duodecuple',
+  'Tredecuple'
+];
+
+var rowsCleared = [];
+
+function updateStatus() {
+  var html = '<br>';
+  if (gameIsOver) {
+    html += '<b><font size=+1>Game Over</font></b><br><br>';
+  } else if (isPaused) {
+    html += '<b><font size=+1>Paused...</font></b><br><br>';
+  }
+    
+  for (var i = 1; i < rowsCleared.length; i++) {
+    if (rowsCleared[i]) {
+      html += (multiples[i] || i) + ' row clears: ' + rowsCleared[i] + "<br>"
+    }
+  }
+  html += 'Total rows cleared: ' + nrows + '<br>';
+  html += '<br>';
+  html += speed() + ' Hz';
+  
+  $('#status').html(html);
+}
+
+function deleteRow(row) {
+  for (var y = row; y < fieldHeight - 1; y++) {
+    for (var x = 0; x < fieldWidth; x++) {
+      writeCell(x, y, readCell(x, y + 1));
+    }
+  }
+  for (var x = 0; x < fieldWidth; x++) {
+    writeCell(x, fieldHeight - 1, 0);
+  }
+}
+
+function eraseCompletedRows() {
+  var y = 0;
+  var totalCleared = 0;
+  nextrow:
+  while (y < fieldHeight) {
+    for (var x = 0; x < fieldWidth; x++) {
+      if (!readCell(x, y)) {
+        y++;
+        continue nextrow;
+      }
+    }
+    totalCleared++;
+    deleteRow(y);
+  }
+  if (totalCleared) {
+    rowsCleared[totalCleared] = (rowsCleared[totalCleared] || 0) + 1;
+    nrows += totalCleared;
+    updateStatus();
+  }
+}
+
+function movePiecesDown() {
+  if (gameIsOver) return;
+  if (!isPaused) {
+    handleKeypads();
+    
+    // Erase active pieces
+    for (var i = 0; i < players.length; i++) {
+      if (!players[i].wait) erasePiece(players[i]);
+    }
+    
+    // Freeze pieces that would intersect with the ground after moving down
+    while (true) {
+      // Record which pieces would intersect ground if moved down by one
+      var playersToFreeze = [];
+      for (var i = 0; i < players.length; i++) {
+        if (!players[i].wait) {
+          players[i].y--;
+          if (tryPiece(players[i])) playersToFreeze.push(players[i]);
+          players[i].y++;
+        }
+      }
+      if (!playersToFreeze.length) break; // Nothing more to freeze
+      
+      // Freeze the pieces that hit frozen ground
+      for (var i = 0; i < playersToFreeze.length; i++) {
+        drawPiece(playersToFreeze[i], playersToFreeze[i].color + 8);
+        playersToFreeze[i].wait = 3;
+      }
+      // Check again;  since we increased the size of the ground, some pieces which didn't hit the ground
+      // earlier might now.
+    }
+    
+    eraseCompletedRows();
+    
+    // Move active pieces down and draw them
+    for (var i = 0; i < players.length; i++) {
+      if (!players[i].wait) {
+        players[i].y--;
+        drawPiece(players[i]);
+      }
+    }
+    
+    redrawField();
+    
+    // Start players that are ready
+    for (var i = 0; i < players.length; i++) {
+      if (players[i].wait) {
+        players[i].wait--;
+        if (!players[i].wait) {
+          startPiece(players[i]);
+        }
+      }
+    }
+  }
+  
+  window.setTimeout(movePiecesDown, 1000 / speed());
+  
+}
+
+var keypadState = {}
+
+function mapButton(keypad, i) {
+  if (keypad.id == '(null) (Vendor: 07b5 Product: 9903)') {
+    switch (i) {
+    case 12: return 14; // left
+    case 13: return 15; // left
+    case 14: return 12; // up
+    case 15: return 13; // down
+    case  0:  return 2; // rotLeft
+    case  2:  return 1; // rotRight
+    case 11:  return 9; // pause
+    default:
+      console.log('unmapped button ' + i);
+      return i + 50;
+    }
+  }
+  return i;
+}
+
+function handleKeypad(keypad, id) {
+  keypadState[id] = keypadState[id] || {}
+  var state = keypadState[id];
+  var buttons = keypad.buttons;
+  var axes = keypad.axes;
+  for (var i = 0; i < buttons.length + axes.length * 2; i++) {
+    var pressed;
+    if (i < buttons.length) {
+      pressed = buttons[i].pressed;
+    } else if ((i - buttons.length) % 2) {
+      pressed = axes[(i - buttons.length - 1)/2] > 0.5;
+    } else {
+      pressed = axes[(i - buttons.length - 0)/2] < -0.5;
+    }
+    if (!!state[i] != pressed) {
+      state[i] = pressed;
+      (pressed ? keydown : keyup)({keyCode: 1000 + id * 100 + mapButton(keypad, i)})
+    }
+  }
+}
+
+function handleKeypads() {
+  var keypads = navigator.getGamepads();
+  for (var i = 0; i < keypads.length; i++) {
+    if (keypads[i]) handleKeypad(keypads[i], i);
+  }
+}
+
+function init() {
+  ctx = $('#field')[0].getContext('2d');
+  nrows = 0;
+  $(window).resize(resizeWindow);
+  $(document).keydown(keydown);
+  $(document).keyup(keyup);
+  updateNplayers();
+  movePiecesDown();
+  updateStatus();
+  window.setInterval(handleKeypads, 8); // 125 hz
+
+}
+    
+$(init);
+
+// Youtube
+
+var player;
+
+function onPlayerStateChange(e) {
+  console.log('statechange');
+  console.log(e);
+}
+
+function onPlayerReady(e) {
+  player.cuePlaylist(['PV06M-Gqxgg', 'hWTFG3J1CP8', 'JTnGI6Knw5Q', 'IvUU8joBb1Q']);
+  player.setLoop(true);
+}
+  
+function onYouTubeIframeAPIReady() {
+  console.log('apiready');
+  player = new YT.Player('video', {
+    playerVars: { 'controls': 0 },
+    events: {
+      'onReady': onPlayerReady,
+      'onStateChange': onPlayerStateChange
+    }
+  });
+}
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<style>
+body {
+  text-align: center;
+  background-color: #888;
+  font-family: arial;
+}
+#status {
+  background-color: black;
+  color: white;
+}
+</style>  
+</head>
+<body>
+<canvas id="field" style="position:absolute"></canvas>
+<div id="status" style="position:absolute"></div>
+<div id="video" style="position:absolute"></div>
+</div>
+</body>
+</html>
+  
+  
