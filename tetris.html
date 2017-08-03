@@ -18,9 +18,9 @@ var pieces = [
    [{x:-1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 2, y: 0}]], // I
 
   [[{x: 0, y:-1}, {x: 0, y: 0}, {x: 0, y: 1}, {x: 1, y: 0}],
-   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}],
+   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 0, y: -1}],
    [{x: 0, y:-1}, {x: 0, y: 0}, {x: 0, y: 1}, {x: -1, y: 0}],
-   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 0, y: -1}]], // T
+   [{x:-1, y: 0}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}]], // T
 
   [[{x: 0, y:-1}, {x: 0, y: 0}, {x: 1, y: 0}, {x: 1, y: 1}], 
    [{x:-1, y: 0}, {x: 0, y: 0}, {x: 0, y:-1}, {x: 1, y:-1}]], // S
@@ -494,7 +494,12 @@ function movePiecesDown() {
 var keypadState = {}
 
 function mapButton(keypad, i) {
-  if (keypad.id == '(null) (Vendor: 07b5 Product: 9903)') {
+  if (keypad.id.includes('Vendor: 046d Product: c216')) {
+    // Logitech Gamepad F310 with slide switch in "D" position
+    return i;
+  }
+  else if (keypad.id.includes('Vendor: 07b5 Product: 9903')) {
+    // Thrustmaster Firestorm Digital 2
     switch (i) {
     case 12: return 14; // left
     case 13: return 15; // left
@@ -507,8 +512,10 @@ function mapButton(keypad, i) {
       console.log('unmapped button ' + i);
       return i + 50;
     }
+  } else {
+    console.log('unknown keypad ' + keypad.id);
+    return i;
   }
-  return i;
 }
 
 function handleKeypad(keypad, id) {
