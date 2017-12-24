@@ -10,6 +10,7 @@ var fieldUpperMargin = 3;
 var fieldScale;
 var drawn;
 var players = [];
+var nControllers = 0;
 
 var pieces = [
   [[{x:-1, y: 0}, {x: 0, y: 0}, {x:-1, y: 1}, {x: 0, y: 1}]], // block
@@ -39,19 +40,34 @@ var pieces = [
    [{x: 1, y: 1}, {x: 0, y: 1}, {x:-1, y: 1}, {x:-1, y: 0}]], // L
 ];
 
-var maxPlayers = 8;
+var maxPlayers = 12;
 
 var playerColors = [
-  'rgb(0,127,201)',
-  'rgb(110,67,24)',
-  'rgb(0,170,75)',
-  'rgb(248,139,0)',
-  'rgb(240,22,22)',
-  'rgb(217,0,128)',
-  'rgb(255,244,0)',
-  'rgb(255,182,213)'
+  '#0066ff', // blue
+  '#af593e', // brown
+  '#0a6b0d', // jade green
+  
+  '#ffdf00', // golden yellow
+  '#ed0a3f', // red
+  '#ff861f', // orange
+  
+  '#6eeb6e', // lime green
+  '#f653a6', // magenta
+  '#d0ff14', // arctic lime
+  
+  '#6b3fa0', // royal purple
+  '#006a93', // cerulean
+  '#01796f', // pine green
 ];
   
+function parseColor(c) {
+  if (c.length == 7 && c[0] == '#') {
+    c = 'rgb(' + parseInt(c.substr(1,2), 16) + ',' +
+      parseInt(c.substr(3,2), 16) + ',' + 
+      parseInt(c.substr(5,2), 16) + ')';
+  }
+  return xolor(c);
+}
 
 var colors = {
   0: 'black',
@@ -59,7 +75,7 @@ var colors = {
 
 for (var i = 0; i < maxPlayers; i++) {
   colors[i + 1] = playerColors[i];
-  colors[i + maxPlayers + 1] = xolor(playerColors[i]).saturation(0.4).value(0.5).toString()
+  colors[i + maxPlayers + 1] = parseColor(playerColors[i]).saturation(0.4).value(0.5).toString()
 }
 
 function resizeField(width, height) {
@@ -217,10 +233,11 @@ function findUnusedColor() {
 
 function addPlayer(id) {
   if (players.length == 0) player.playVideo();
-  var newPlayer = {id:id, color:findUnusedColor()};
+  var newPlayer = {id:id, color:playerColorIds[id]};
   players.push(newPlayer);
   updateNplayers();
   newPlayer.wait = 1;
+  updateStatus();
 }
 
 var translateCommands = {
@@ -292,6 +309,22 @@ function execute(e) {
   redrawField();
 }
 
+var playerColorIds = {
+  local1: 1,
+  local2: 2,
+  gamepad0: 3,
+  gamepad1: 4,
+  gamepad2: 5,
+  gamepad3: 6,
+  gamepad4: 7,
+  gamepad5: 8,
+  gamepad6: 9,
+  gamepad7: 10,
+  gamepad8: 11,
+  gamepad9: 12,
+  gamepad10: 13
+};
+  
 var localKeymap = {
   37 : {player:'local1', cmd:'left'     }, // left arrow
   39 : {player:'local1', cmd:'right'    }, // right arrow
@@ -326,18 +359,65 @@ var localKeymap = {
   1101 : {player:'gamepad1', cmd:'rotRight' },
   1109 : {player:'gamepad1', cmd:'pause'    },
   1108 : {player:'gamepad1', cmd:'quit'     },
+
+  1214 : {player:'gamepad2', cmd:'left'     },
+  1215 : {player:'gamepad2', cmd:'right'    },
+  1212 : {player:'gamepad2', cmd:'up'       },
+  1213 : {player:'gamepad2', cmd:'down'     },
+  1202 : {player:'gamepad2', cmd:'rotLeft'  },
+  1201 : {player:'gamepad2', cmd:'rotRight' },
+  1209 : {player:'gamepad2', cmd:'pause'    },
+  1208 : {player:'gamepad2', cmd:'quit'     },
+
+  1314 : {player:'gamepad3', cmd:'left'     },
+  1315 : {player:'gamepad3', cmd:'right'    },
+  1312 : {player:'gamepad3', cmd:'up'       },
+  1313 : {player:'gamepad3', cmd:'down'     },
+  1302 : {player:'gamepad3', cmd:'rotLeft'  },
+  1301 : {player:'gamepad3', cmd:'rotRight' },
+  1309 : {player:'gamepad3', cmd:'pause'    },
+  1308 : {player:'gamepad3', cmd:'quit'     },
+
+  1414 : {player:'gamepad4', cmd:'left'     },
+  1415 : {player:'gamepad4', cmd:'right'    },
+  1412 : {player:'gamepad4', cmd:'up'       },
+  1413 : {player:'gamepad4', cmd:'down'     },
+  1402 : {player:'gamepad4', cmd:'rotLeft'  },
+  1401 : {player:'gamepad4', cmd:'rotRight' },
+  1409 : {player:'gamepad4', cmd:'pause'    },
+  1408 : {player:'gamepad4', cmd:'quit'     },
+
+  1514 : {player:'gamepad5', cmd:'left'     },
+  1515 : {player:'gamepad5', cmd:'right'    },
+  1512 : {player:'gamepad5', cmd:'up'       },
+  1513 : {player:'gamepad5', cmd:'down'     },
+  1502 : {player:'gamepad5', cmd:'rotLeft'  },
+  1501 : {player:'gamepad5', cmd:'rotRight' },
+  1509 : {player:'gamepad5', cmd:'pause'    },
+  1508 : {player:'gamepad5', cmd:'quit'     },
+
+  1614 : {player:'gamepad6', cmd:'left'     },
+  1615 : {player:'gamepad6', cmd:'right'    },
+  1612 : {player:'gamepad6', cmd:'up'       },
+  1613 : {player:'gamepad6', cmd:'down'     },
+  1602 : {player:'gamepad6', cmd:'rotLeft'  },
+  1601 : {player:'gamepad6', cmd:'rotRight' },
+  1609 : {player:'gamepad6', cmd:'pause'    },
+  1608 : {player:'gamepad6', cmd:'quit'     },
 }
+
 
 var keyrepeats = {};
 
 function key(keyCode) {
-  console.log(keyCode);
+  //console.log(keyCode);
   var e = localKeymap[keyCode];
   if (e) execute(e);
 }
   
 function keyup(event) {
   var keyCode = event.keyCode;
+  console.log('keyup ' + keyCode);
   if (keyrepeats[keyCode]) {
     window.clearInterval(keyrepeats[keyCode]);
     keyrepeats[keyCode] = null;
@@ -351,6 +431,7 @@ function startAutoRepeat(keyCode) {
                       
 function keydown(event) {
   var keyCode = event.keyCode;
+  console.log('keydown ' + keyCode);
   if (!keyrepeats[keyCode]) {
     key(keyCode);
     keyrepeats[keyCode] = window.setTimeout(function(){startAutoRepeat(keyCode)}, 200);
@@ -395,7 +476,10 @@ function updateStatus() {
   }
   html += 'Total rows cleared: ' + nrows + '<br>';
   html += '<br>';
-  html += speed() + ' Hz';
+  html += speed() + ' Hz<br>';
+  html += '<br>';
+  html += players.length + ' players<br>';
+  html += nControllers + ' controllers detected<br>';
   
   $('#status').html(html);
 }
@@ -435,7 +519,7 @@ function eraseCompletedRows() {
 function movePiecesDown() {
   if (gameIsOver) return;
   if (!isPaused) {
-    handleKeypads();
+    //handleKeypads();
     
     // Erase active pieces
     for (var i = 0; i < players.length; i++) {
@@ -494,11 +578,13 @@ function movePiecesDown() {
 var keypadState = {}
 
 function mapButton(keypad, i) {
-  if (keypad.id.includes('Vendor: 046d Product: c216')) {
+  if (keypad.id.includes('Vendor: 046d Product: c216') ||
+      keypad.id.includes('Logitech Dual Action')) {
     // Logitech Gamepad F310 with slide switch in "D" position
     return i;
   }
-  else if (keypad.id.includes('Vendor: 07b5 Product: 9903')) {
+  else if (keypad.id.includes('Vendor: 07b5 Product: 9903') || // mac chrome
+           keypad.id.includes('7b5-9903-')) {                  // mac safari
     // Thrustmaster Firestorm Digital 2
     switch (i) {
     case 12: return 14; // left
@@ -518,12 +604,14 @@ function mapButton(keypad, i) {
   }
 }
 
-function handleKeypad(keypad, id) {
+function handleKeypad(keypad, id, verbose) {
   keypadState[id] = keypadState[id] || {}
   var state = keypadState[id];
   var buttons = keypad.buttons;
   var axes = keypad.axes;
+  var statestring = '';
   for (var i = 0; i < buttons.length + axes.length * 2; i++) {
+    if (state[i] == undefined) state[i]=false;
     var pressed;
     if (i < buttons.length) {
       pressed = buttons[i].pressed;
@@ -532,20 +620,35 @@ function handleKeypad(keypad, id) {
     } else {
       pressed = axes[(i - buttons.length - 0)/2] < -0.5;
     }
-    if (!!state[i] != pressed) {
+    if (state[i] != pressed) {
       state[i] = pressed;
       (pressed ? keydown : keyup)({keyCode: 1000 + id * 100 + mapButton(keypad, i)})
     }
+    statestring += (0 + state[i]);
   }
+  if (verbose) console.log(id + ': ' + statestring);
 }
 
-function handleKeypads() {
+function handleKeypads(verbose) {
   var keypads = navigator.getGamepads();
+  var controllersFound = 0;
   for (var i = 0; i < keypads.length; i++) {
-    if (keypads[i]) handleKeypad(keypads[i], i);
+    if (keypads[i]) {
+      handleKeypad(keypads[i], i, verbose);
+      controllersFound++;
+    }
+  }
+  if (controllersFound != nControllers) {
+    nControllers = controllersFound;
+    updateStatus();
   }
 }
 
+function handleFrame() {
+  handleKeypads();
+  window.requestAnimationFrame(handleFrame);
+}
+                      
 function init() {
   ctx = $('#field')[0].getContext('2d');
   nrows = 0;
@@ -555,8 +658,8 @@ function init() {
   updateNplayers();
   movePiecesDown();
   updateStatus();
-  window.setInterval(handleKeypads, 8); // 125 hz
-
+  window.requestAnimationFrame(handleFrame);
+  //window.setInterval(handleKeypads, 8); // 125 hz
 }
     
 $(init);
