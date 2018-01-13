@@ -182,12 +182,12 @@ function drawPiece(player, colorOverride) {
   return true;
 }
 
-var gameIsOver;
+var gameIsOver = false;
 
 function gameOver() {
   player.pauseVideo();
   player.seekTo(0);
-  gameIsOver = true;
+  gameIsOver = new Date();
   for (var i = 0; i < players.length; i++) {
     erasePiece(players[i]);
   }
@@ -288,10 +288,30 @@ function togglePause() {
   updateStatus();
 }
 
+function startNewGame() {
+  location.reload();
+  //gameIsOver = false;
+  //players = [];
+  //resizeField();
+  //for (var x = 0; x < fieldWidth; x++) {
+  //  for (var y = 0; y < fieldHeight; y++) {
+  //    writeCell(x, y, 0);
+  //  }
+  //}
+  //rowsCleared = [];
+}
+
+  
 function execute(e) {
   if (e.cmd == 'pause') togglePause();
 
   if (isPaused) return;
+
+  if (gameIsOver) {
+    console.log(new Date() - gameIsOver);
+    if ((new Date() - gameIsOver) < 3000) return;
+    startNewGame();
+  }
   
   if (!findPlayer(e.player)) addPlayer(e.player);
   var player = findPlayer(e.player);
@@ -406,35 +426,55 @@ var localKeymap = {
   1608 : {player:'gamepad6', cmd:'quit'     },
 }
 
-
 var keyrepeats = {};
 
 function key(keyCode) {
-  //console.log(keyCode);
+  console.log(keyCode);
   var e = localKeymap[keyCode];
   if (e) execute(e);
+}
+
+function keylog(msg) {
+  console.log(((new Date().getTime()) % 10000) + ' ' + msg);
 }
   
 function keyup(event) {
   var keyCode = event.keyCode;
-  console.log('keyup ' + keyCode);
   if (keyrepeats[keyCode]) {
     window.clearInterval(keyrepeats[keyCode]);
     keyrepeats[keyCode] = null;
   }
 }
 
+function autoRepeatPeriod(keycode) {
+  // Default auto-repeat is 10 Hz (100 ms)
+  // But make sure the auto-repeat for "up" is at least twice the down-speed
+  // E.g. if down-speed is 8 Hz, make up auto-repeat 16 Hz
+  if (localKeymap[keycode] && localKeymap[keycode].cmd == 'rotLeft') {
+    return 1e9;
+  } else if (localKeymap[keycode] && localKeymap[keycode].cmd == 'rotRight') {
+    return 1e9;
+  } else if (localKeymap[keycode] && localKeymap[keycode].cmd == 'up') {
+    return Math.min(100, 0.5 * 1000 / speed());
+  } else {
+    return 100;
+  }
+}
+                                    
 function startAutoRepeat(keyCode) {
   key(keyCode);
-  keyrepeats[keyCode] = window.setInterval(function(){key(keyCode)}, 100);
+  keyrepeats[keyCode] = window.setInterval(function(){
+    key(keyCode);
+  }, autoRepeatPeriod(keyCode));
 }
                       
 function keydown(event) {
   var keyCode = event.keyCode;
-  console.log('keydown ' + keyCode);
+  //console.log('keydown ' + keyCode);
   if (!keyrepeats[keyCode]) {
+    if (keyCode == 1102) keylog('key down');
     key(keyCode);
-    keyrepeats[keyCode] = window.setTimeout(function(){startAutoRepeat(keyCode)}, 200);
+    keyrepeats[keyCode] = window.setTimeout(function(){startAutoRepeat(keyCode)}, 2 * autoRepeatPeriod(keyCode));
   }
 }
 
@@ -464,9 +504,9 @@ var rowsCleared = [];
 function updateStatus() {
   var html = '<br>';
   if (gameIsOver) {
-    html += '<b><font size=+1>Game Over</font></b><br><br>';
+    html += '<b><font size=+3>Game Over</font></b><br><br>';
   } else if (isPaused) {
-    html += '<b><font size=+1>Paused...</font></b><br><br>';
+    html += '<b><font size=+3>Paused...</font></b><br><br>';
   }
     
   for (var i = 1; i < rowsCleared.length; i++) {
@@ -541,7 +581,7 @@ function movePiecesDown() {
       
       // Freeze the pieces that hit frozen ground
       for (var i = 0; i < playersToFreeze.length; i++) {
-        drawPiece(playersToFreeze[i], playersToFreeze[i].color + 8);
+        drawPiece(playersToFreeze[i], playersToFreeze[i].color + maxPlayers);
         playersToFreeze[i].wait = 3;
       }
       // Check again;  since we increased the size of the ground, some pieces which didn't hit the ground
@@ -572,7 +612,6 @@ function movePiecesDown() {
   }
   
   window.setTimeout(movePiecesDown, 1000 / speed());
-  
 }
 
 var keypadState = {}
@@ -674,14 +713,14 @@ function onPlayerStateChange(e) {
 }
 
 function onPlayerReady(e) {
-  player.cuePlaylist(['PV06M-Gqxgg', 'hWTFG3J1CP8', 'JTnGI6Knw5Q', 'IvUU8joBb1Q']);
+  player.cuePlaylist(['PV06M-Gqxgg', 'hWTFG3J1CP8', 'IvUU8joBb1Q', 'JTnGI6Knw5Q', 'npjF032TDDQ', 'TzFnYcIqj6I']);
   player.setLoop(true);
 }
   
 function onYouTubeIframeAPIReady() {
   console.log('apiready');
   player = new YT.Player('video', {
-    playerVars: { 'controls': 0 },
+    playerVars: { 'controls': 0, 'showinfo':0, 'autohide':1 },
     events: {
       'onReady': onPlayerReady,
       'onStateChange': onPlayerStateChange
