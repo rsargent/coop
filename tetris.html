@@ -303,7 +303,10 @@ function startNewGame() {
 
   
 function execute(e) {
-  if (e.cmd == 'pause') togglePause();
+  if (e.cmd == 'pause') {
+    togglePause();
+    return;
+  }
 
   if (isPaused) return;
 
@@ -352,7 +355,7 @@ var localKeymap = {
   40 : {player:'local1', cmd:'down'     }, // down arrow
   191: {player:'local1', cmd:'rotLeft'  }, // slash
   16 : {player:'local1', cmd:'rotRight' }, // right shift
-  13 : {player:'local1', cmd:'quit'     }, // return
+  32 : {player:'local1', cmd:'pause'    }, // space
 
   65 : {player:'local2', cmd:'left'     }, // a
   68 : {player:'local2', cmd:'right'    }, // d
@@ -360,7 +363,6 @@ var localKeymap = {
   83 : {player:'local2', cmd:'down'     }, // s
   81 : {player:'local2', cmd:'rotLeft'  }, // q
   69 : {player:'local2', cmd:'rotRight' }, // e
-  88 : {player:'local2', cmd:'quit'     }, // x
 
   1014 : {player:'gamepad0', cmd:'left'     },
   1015 : {player:'gamepad0', cmd:'right'    },
